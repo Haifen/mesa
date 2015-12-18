@@ -8,4 +8,4 @@ Name: d3d
 Description: Native D3D driver modules
 Version: @NINE_VERSION@
 Requires.private: @DRI_PC_REQ_PRIV@
-Cflags: -I${includedir}
+Cflags: -I${includedir} -I${includedir}/d3dadapter -I${includedir}/D3D9

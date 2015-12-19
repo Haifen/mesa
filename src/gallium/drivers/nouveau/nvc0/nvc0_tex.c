@@ -102,7 +102,9 @@ nvc0_create_texture_view(struct pipe_context *pipe,
 
    desc = util_format_description(view->pipe.format);
 
-   tic[0] = nvc0_format_table[view->pipe.format].tic;
+   tic[0] = nvc0_format_table[view->pipe.format].tic & 0x40;
+   if (nvc0_format_table[view->pipe.format].tic & 0x40)
+      tic[0] |= 1U << 31;
 
    tex_int = util_format_is_pure_integer(view->pipe.format);
 

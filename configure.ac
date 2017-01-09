@@ -85,6 +85,7 @@ dnl Versions for external dependencies
 DRI2PROTO_REQUIRED=2.8
 GLPROTO_REQUIRED=1.4.14
 LIBOMXIL_BELLAGIO_REQUIRED=0.0
+LIBOMXIL_TIZONIA_REQUIRED=0.9.0
 LIBVA_REQUIRED=0.38.0
 VDPAU_REQUIRED=1.1
 WAYLAND_REQUIRED=1.11
@@ -1311,14 +1312,19 @@ AC_ARG_ENABLE([vdpau],
    [enable_vdpau=auto])
 AC_ARG_ENABLE([omx],
    [AS_HELP_STRING([--enable-omx],
-         [DEPRECATED: Use --enable-omx-bellagio instead @<:@default=auto@:>@])],
-   [AC_MSG_ERROR([--enable-omx is deprecated. Use --enable-omx-bellagio instead.])],
+         [DEPRECATED: Use --enable-omx-bellagio or --enable-omx-tizonia instead @<:@default=auto@:>@])],
+   [AC_MSG_ERROR([--enable-omx is deprecated. Use --enable-omx-bellagio or --enable-omx-tizonia instead.])],
    [])
 AC_ARG_ENABLE([omx-bellagio],
    [AS_HELP_STRING([--enable-omx-bellagio],
          [enable OpenMAX Bellagio library @<:@default=disabled@:>@])],
    [enable_omx_bellagio="$enableval"],
    [enable_omx_bellagio=no])
+AC_ARG_ENABLE([omx-tizonia],
+   [AS_HELP_STRING([--enable-omx-tizonia],
+         [enable OpenMAX Tizonia library @<:@default=disabled@:>@])],
+   [enable_omx_tizonia="$enableval"],
+   [enable_omx_tizonia=no])
 AC_ARG_ENABLE([va],
    [AS_HELP_STRING([--enable-va],
          [enable va library @<:@default=auto@:>@])],
@@ -1370,6 +1376,7 @@ if test "x$enable_opengl" = xno -a \
         "x$enable_xvmc" = xno -a \
         "x$enable_vdpau" = xno -a \
         "x$enable_omx_bellagio" = xno -a \
+        "x$enable_omx_tizonia" = xno -a \
         "x$enable_va" = xno -a \
         "x$enable_opencl" = xno; then
     AC_MSG_ERROR([at least one API should be enabled])
@@ -2215,6 +2222,10 @@ if test -n "$with_gallium_drivers" -a "x$with_gallium_drivers" != xswrast; then
         PKG_CHECK_EXISTS([libomxil-bellagio >= $LIBOMXIL_BELLAGIO_REQUIRED], [enable_omx_bellagio=yes], [enable_omx_bellagio=no])
     fi
 
+    if test "x$enable_omx_tizonia" = xauto -a "x$have_omx_platform" = xyes; then
+       PKG_CHECK_EXISTS([libtizonia >= $LIBOMXIL_TIZONIA_REQUIRED], [enable_omx_tizonia=yes], [enable_omx_tizonia=no])
+    fi
+
     if test "x$enable_va" = xauto -a "x$have_va_platform" = xyes; then
         PKG_CHECK_EXISTS([libva >= $LIBVA_REQUIRED], [enable_va=yes], [enable_va=no])
     fi
@@ -2224,6 +2235,7 @@ if test "x$enable_dri" = xyes -o \
         "x$enable_xvmc" = xyes -o \
         "x$enable_vdpau" = xyes -o \
         "x$enable_omx_bellagio" = xyes -o \
+        "x$enable_omx_tizonia" = xyes -o \
         "x$enable_va" = xyes; then
     need_gallium_vl=yes
 fi
@@ -2232,6 +2244,7 @@ AM_CONDITIONAL(NEED_GALLIUM_VL, test "x$need_gallium_vl" = xyes)
 if test "x$enable_xvmc" = xyes -o \
         "x$enable_vdpau" = xyes -o \
         "x$enable_omx_bellagio" = xyes -o \
+        "x$enable_omx_tizonia" = xyes -o \
         "x$enable_va" = xyes; then
     if echo $platforms | grep -q "x11"; then
         PKG_CHECK_MODULES([VL], [x11-xcb xcb xcb-dri2 >= $XCBDRI2_REQUIRED])
@@ -2267,6 +2280,18 @@ if test "x$enable_omx_bellagio" = xyes; then
     gallium_st="$gallium_st omx_bellagio"
 fi
 AM_CONDITIONAL(HAVE_ST_OMX_BELLAGIO, test "x$enable_omx_bellagio" = xyes)
+
+if test "x$enable_omx_tizonia" = xyes; then
+    if test "x$have_omx_platform" != xyes; then
+        AC_MSG_ERROR([OMX requires at least one of the x11 or drm platforms])
+    fi
+    PKG_CHECK_MODULES([OMX_TIZONIA],
+                      [libtizonia >= $LIBOMXIL_TIZONIA_REQUIRED
+                       tizilheaders >= $LIBOMXIL_TIZONIA_REQUIRED
+                       libtizplatform >= $LIBOMXIL_TIZONIA_REQUIRED])
+    gallium_st="$gallium_st omx_tizonia"
+fi
+AM_CONDITIONAL(HAVE_ST_OMX_TIZONIA, test "x$enable_omx_tizonia" = xyes)
 
 if test "x$enable_va" = xyes; then
     if test "x$have_va_platform" != xyes; then
@@ -2440,6 +2465,15 @@ AC_ARG_WITH([omx-bellagio-libdir],
     [OMX_BELLAGIO_LIB_INSTALL_DIR=`$PKG_CONFIG --exists libomxil-bellagio && \
                                    $PKG_CONFIG --define-variable=libdir=\$libdir --variable=pluginsdir libomxil-bellagio`])
 AC_SUBST([OMX_BELLAGIO_LIB_INSTALL_DIR])
+
+dnl Directory for OMX_TIZONIA libs
+
+AC_ARG_WITH([omx-tizonia-libdir],
+    [AS_HELP_STRING([--with-omx-tizonia-libdir=DIR],
+        [directory for the OMX_TIZONIA libraries])],
+    [OMX_TIZONIA_LIB_INSTALL_DIR="$withval"],
+    [OMX_TIZONIA_LIB_INSTALL_DIR=`$PKG_CONFIG --define-variable=libdir=\$libdir --variable=pluginsdir libtizcore`])
+AC_SUBST([OMX_TIZONIA_LIB_INSTALL_DIR])
 
 dnl Directory for VA libs
 
@@ -2981,6 +3015,7 @@ AC_CONFIG_FILES([Makefile
                  src/gallium/state_trackers/glx/xlib/Makefile
                  src/gallium/state_trackers/nine/Makefile
                  src/gallium/state_trackers/omx_bellagio/Makefile
+                 src/gallium/state_trackers/omx_tizonia/Makefile
                  src/gallium/state_trackers/osmesa/Makefile
                  src/gallium/state_trackers/va/Makefile
                  src/gallium/state_trackers/vdpau/Makefile
@@ -2992,6 +3027,7 @@ AC_CONFIG_FILES([Makefile
                  src/gallium/targets/dri/Makefile
                  src/gallium/targets/libgl-xlib/Makefile
                  src/gallium/targets/omx-bellagio/Makefile
+                 src/gallium/targets/omx-tizonia/Makefile
                  src/gallium/targets/opencl/Makefile
                  src/gallium/targets/opencl/mesa.icd
                  src/gallium/targets/osmesa/Makefile
